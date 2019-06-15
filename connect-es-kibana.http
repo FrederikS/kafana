@@ -1,0 +1,95 @@
+### Produce bar record
+POST /topics/bar HTTP/1.1
+Host: localhost:8082
+Content-Type: application/vnd.kafka.avro.v2+json
+Accept: application/vnd.kafka.v2+json, application/vnd.kafka+json, application/json
+
+{
+    "key_schema": "{\"type\": \"string\"}",
+    "value_schema_id": 1,
+    "records": [{
+        "key": "1",
+        "value": {
+            "bar": 1234,
+            "baz": "baz"
+        }
+    }]
+}
+
+### Produce bar tombstone
+POST /topics/bar HTTP/1.1
+Host: localhost:8082
+Content-Type: application/vnd.kafka.avro.v2+json
+Accept: application/vnd.kafka.v2+json, application/vnd.kafka+json, application/json
+
+{
+    "key_schema": "{\"type\": \"string\"}",
+    "records": [{
+        "key": "1"
+    }]
+}
+
+### Produce foo record
+POST /topics/foo HTTP/1.1
+Host: localhost:8082
+Content-Type: application/vnd.kafka.avro.v2+json
+Accept: application/vnd.kafka.v2+json, application/vnd.kafka+json, application/json
+
+{
+    "key_schema": "{\"type\": \"string\"}",
+    "value_schema_id": 2,
+    "records": [{
+        "key": "1",
+        "value": {
+            "foo": "foo",
+            "bar": 1234
+        }
+    }]
+}
+
+### Produce foo tombstone
+POST /topics/foo HTTP/1.1
+Host: localhost:8082
+Content-Type: application/vnd.kafka.avro.v2+json
+Accept: application/vnd.kafka.v2+json, application/vnd.kafka+json, application/json
+
+{
+    "key_schema": "{\"type\": \"string\"}",
+    "records": [{
+        "key": "1"
+    }]
+}
+
+### Add elasticsearch connector
+POST /connectors HTTP/1.1
+Host: localhost:8083
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "elasticsearch-sink",
+    "config": {
+        "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+        "value.converter": "de.fsteffen.kinspector.convert.TombstoneAwareAvroConverter",
+        "value.converter.schema.registry.url": "http://schema-registry:8081",
+        "topics": "foo,bar",
+        "key.ignore": "true",
+        "connection.url": "http://elasticsearch:9200",
+        "type.name": "log",
+        "transforms": "InsertValueAsString,HoistValue,InsertTimestamp,InsertTopic,InsertPartition,InsertOffset,InsertKey",
+        "transforms.InsertValueAsString.type": "de.fsteffen.kinspector.transform.InsertValueAsString$Value",
+        "transforms.InsertValueAsString.field": "value",
+        "transforms.HoistValue.type": "org.apache.kafka.connect.transforms.HoistField$Value",
+        "transforms.HoistValue.field": "message",
+        "transforms.InsertTimestamp.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+        "transforms.InsertTimestamp.timestamp.field": "timestamp",
+        "transforms.InsertTopic.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+        "transforms.InsertTopic.topic.field": "topic",
+        "transforms.InsertPartition.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+        "transforms.InsertPartition.partition.field": "partition",
+        "transforms.InsertOffset.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+        "transforms.InsertOffset.offset.field": "offset",
+        "transforms.InsertKey.key.field": "key",
+        "transforms.InsertKey.type": "de.fsteffen.kinspector.transform.InsertStringKey$Value"
+    }
+}
