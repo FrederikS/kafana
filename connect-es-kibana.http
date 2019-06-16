@@ -90,6 +90,6 @@ Accept: application/json
         "transforms.InsertOffset.type": "org.apache.kafka.connect.transforms.InsertField$Value",
         "transforms.InsertOffset.offset.field": "offset",
         "transforms.InsertKey.key.field": "key",
-        "transforms.InsertKey.type": "de.fsteffen.kinspector.transform.InsertStringKey$Value"
+        "transforms.InsertKey.type": "de.fsteffen.kinspector.transform.InsertKey$Value"
     }
 }
