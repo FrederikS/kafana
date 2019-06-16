@@ -2,7 +2,6 @@ package de.fsteffen.kinspector.convert;
 
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.storage.Converter;
@@ -27,8 +26,8 @@ public class TombstoneAwareAvroConverter implements Converter {
     public SchemaAndValue toConnectData(String topic, byte[] value) {
         SchemaAndValue tombstone = new SchemaAndValue(Schema.STRING_SCHEMA, "TOMBSTONE");
         return Optional.of(avroConverter.toConnectData(topic, value))
-                .filter(v -> !SchemaAndValue.NULL.equals(v))
-                .orElseGet(() -> tombstone);
+                       .filter(v -> !SchemaAndValue.NULL.equals(v))
+                       .orElseGet(() -> tombstone);
     }
 
 }
