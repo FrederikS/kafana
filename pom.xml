@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>de.fsteffen.kinspector</groupId>
+  <groupId>de.fsteffen.kafana</groupId>
   <artifactId>parent</artifactId>
   <version>1.0-SNAPSHOT</version>
 
@@ -107,8 +107,8 @@
               <param>http://localhost:8081</param>
             </schemaRegistryUrls>
             <subjects>
-              <foo-value>src/main/resources/de/fsteffen/kinspector/schema/Foo.avsc</foo-value>
-              <bar-value>src/main/resources/de/fsteffen/kinspector/schema/Bar.avsc</bar-value>
+              <foo-value>src/main/resources/de/fsteffen/kafana/sample/schema/Foo.avsc</foo-value>
+              <bar-value>src/main/resources/de/fsteffen/kafana/sample/schema/Bar.avsc</bar-value>
             </subjects>
           </configuration>
           <goals>

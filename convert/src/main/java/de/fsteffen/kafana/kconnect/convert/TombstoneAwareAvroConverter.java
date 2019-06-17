@@ -1,4 +1,4 @@
-package de.fsteffen.kinspector.convert;
+package de.fsteffen.kafana.kconnect.convert;
 
 import java.util.Map;
 import java.util.Optional;

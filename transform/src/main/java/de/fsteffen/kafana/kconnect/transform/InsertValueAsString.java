@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package de.fsteffen.kinspector.transform;
+package de.fsteffen.kafana.kconnect.transform;
 
 import static org.apache.kafka.connect.transforms.util.Requirements.requireMap;
 import static org.apache.kafka.connect.transforms.util.Requirements.requireStruct;
@@ -28,41 +28,53 @@ import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.json.JsonConverterConfig;
+import org.apache.kafka.connect.storage.ConverterConfig;
+import org.apache.kafka.connect.storage.ConverterType;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SchemaUtil;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
 
-public abstract class InsertKey<R extends ConnectRecord<R>> implements Transformation<R> {
+public abstract class InsertValueAsString<R extends ConnectRecord<R>> implements Transformation<R> {
 
-    public static final String OVERVIEW_DOC = "Insert key using the key from the record metadata."
-            + "<p/>Use the concrete transformation type designed for the record Value (<code>"
+    public static final String OVERVIEW_DOC = "Insert value as json String."
+            + "<p/>Use the concrete transformation type designed for the record value (<code>"
             + Value.class.getName() + "</code>).";
 
+    private static final JsonConverter JSON_CONVERTER = new JsonConverter();
+
+    static {
+        HashMap<String, Object> config = new HashMap<String, Object>(2);
+        config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
+        config.put(ConverterConfig.TYPE_CONFIG, ConverterType.VALUE.getName());
+        JSON_CONVERTER.configure(config);
+    }
+
     private interface ConfigName {
-        String KEY_FIELD = "key.field";
+        String FIELD = "field";
     }
 
     public static final ConfigDef CONFIG_DEF = new ConfigDef().define(
-            ConfigName.KEY_FIELD,
+            ConfigName.FIELD,
             ConfigDef.Type.STRING,
             null,
             ConfigDef.Importance.MEDIUM,
-            "Field name for record key. "
+            "Field name for record key."
     );
 
-    private static final String PURPOSE = "key insertion";
+    private static final String PURPOSE = "value as json string insertion";
 
-    private String keyField;
-
+    private String field;
     private Cache<Schema, Schema> schemaUpdateCache;
 
     @Override
     public void configure(Map<String, ?> props) {
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, props);
-        keyField = config.getString(ConfigName.KEY_FIELD);
+        field = config.getString(ConfigName.FIELD);
 
-        if (keyField == null) {
-            throw new ConfigException("No field for key insertion configured");
+        if (field == null) {
+            throw new ConfigException("No field for insertion configured");
         }
 
         schemaUpdateCache = new SynchronizedCache<>(new LRUCache<Schema, Schema>(16));
@@ -80,41 +92,62 @@ public abstract class InsertKey<R extends ConnectRecord<R>> implements Transform
     private R applySchemaless(R record) {
         final Map<String, Object> value = requireMap(operatingValue(record), PURPOSE);
         final Map<String, Object> updatedValue = new HashMap<>(value);
-        updatedValue.put(keyField, record.key());
-
+        updatedValue.put(field, record.value().toString());
         return newRecord(record, null, updatedValue);
     }
 
     private R applyWithSchema(R record) {
-        final Struct value = requireStruct(operatingValue(record), PURPOSE);
+        Schema schema = operatingSchema(record);
+        if (schema.type().equals(Schema.Type.STRUCT)) {
+            final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
-        Schema updatedSchema = schemaUpdateCache.get(value.schema());
+            Schema updatedSchema = schemaUpdateCache.get(value.schema());
+            if (updatedSchema == null) {
+                updatedSchema = makeUpdatedSchema(value.schema());
+                schemaUpdateCache.put(value.schema(), updatedSchema);
+            }
+
+            final Struct updatedValue = new Struct(updatedSchema);
+
+            for (Field field : value.schema().fields()) {
+                updatedValue.put(field.name(), value.get(field));
+            }
+
+            byte[] parsedBytes = JSON_CONVERTER.fromConnectData(
+                    record.topic(),
+                    value.schema(),
+                    value
+            );
+            updatedValue.put(field, new String(parsedBytes));
+
+            return newRecord(record, updatedSchema, updatedValue);
+        } else {
+            return handlePrimitiveValue(record, schema);
+        }
+    }
+
+    private R handlePrimitiveValue(R record, Schema schema) {
+        final Object value = operatingValue(record);
+        Schema updatedSchema = schemaUpdateCache.get(schema);
         if (updatedSchema == null) {
-            updatedSchema = makeUpdatedSchema(value.schema(), record.keySchema());
-            schemaUpdateCache.put(value.schema(), updatedSchema);
+            updatedSchema = SchemaBuilder.struct()
+                                         .field(field, schema)
+                                         .build();
+            schemaUpdateCache.put(schema, updatedSchema);
         }
 
-        final Struct updatedValue = new Struct(updatedSchema);
-
-        for (Field field : value.schema().fields()) {
-            updatedValue.put(field.name(), value.get(field));
-        }
-        updatedValue.put(keyField, record.key());
-
+        final Struct updatedValue = new Struct(updatedSchema).put(field, value);
         return newRecord(record, updatedSchema, updatedValue);
     }
 
-    private Schema makeUpdatedSchema(Schema valueSchema, Schema keySchema) {
-        final SchemaBuilder builder = SchemaUtil.copySchemaBasics(
-                valueSchema,
-                SchemaBuilder.struct()
-        );
+    private Schema makeUpdatedSchema(Schema schema) {
+        final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
 
-        for (Field field : valueSchema.fields()) {
+        for (Field field : schema.fields()) {
             builder.field(field.name(), field.schema());
         }
-        builder.field(keyField, keySchema);
 
+        builder.field(field, Schema.STRING_SCHEMA);
         return builder.build();
     }
 
@@ -134,7 +167,7 @@ public abstract class InsertKey<R extends ConnectRecord<R>> implements Transform
 
     protected abstract R newRecord(R record, Schema updatedSchema, Object updatedValue);
 
-    public static class Value<R extends ConnectRecord<R>> extends InsertKey<R> {
+    public static class Value<R extends ConnectRecord<R>> extends InsertValueAsString<R> {
 
         @Override
         protected Schema operatingSchema(R record) {

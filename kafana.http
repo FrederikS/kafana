@@ -70,14 +70,14 @@ Accept: application/json
     "name": "elasticsearch-sink",
     "config": {
         "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
-        "value.converter": "de.fsteffen.kinspector.convert.TombstoneAwareAvroConverter",
+        "value.converter": "de.fsteffen.kafana.kconnect.convert.TombstoneAwareAvroConverter",
         "value.converter.schema.registry.url": "http://schema-registry:8081",
         "topics": "foo,bar",
         "key.ignore": "true",
         "connection.url": "http://elasticsearch:9200",
         "type.name": "log",
         "transforms": "InsertValueAsString,HoistValue,InsertTimestamp,InsertTopic,InsertPartition,InsertOffset,InsertKey",
-        "transforms.InsertValueAsString.type": "de.fsteffen.kinspector.transform.InsertValueAsString$Value",
+        "transforms.InsertValueAsString.type": "de.fsteffen.kafana.kconnect.transform.InsertValueAsString$Value",
         "transforms.InsertValueAsString.field": "value",
         "transforms.HoistValue.type": "org.apache.kafka.connect.transforms.HoistField$Value",
         "transforms.HoistValue.field": "message",
@@ -90,6 +90,6 @@ Accept: application/json
         "transforms.InsertOffset.type": "org.apache.kafka.connect.transforms.InsertField$Value",
         "transforms.InsertOffset.offset.field": "offset",
         "transforms.InsertKey.key.field": "key",
-        "transforms.InsertKey.type": "de.fsteffen.kinspector.transform.InsertKey$Value"
+        "transforms.InsertKey.type": "de.fsteffen.kafana.kconnect.transform.InsertKey$Value"
     }
 }
